@@ -98,6 +98,12 @@ type Styles struct {
 	// Text selection
 	TextSelection lipgloss.Style
 
+	// Search bar (in-chat text search overlay)
+	SearchBar        lipgloss.Style // Full-width bar background
+	SearchPrompt     lipgloss.Style // "/" prompt symbol
+	SearchMatchCount lipgloss.Style // "[3/10]" match counter
+	SearchNoMatch    lipgloss.Style // "no matches" indicator
+
 	// Markdown & Chroma
 	Markdown      ansi.StyleConfig
 	QuietMarkdown ansi.StyleConfig

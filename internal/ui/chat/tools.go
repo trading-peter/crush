@@ -287,6 +287,21 @@ func (t *baseToolMessageItem) ID() string {
 	return t.toolCall.ID
 }
 
+// SearchText implements [SearchableItem]. It returns the tool name,
+// input JSON, and result content joined together so that search can
+// match any visible part of the tool call.
+func (t *baseToolMessageItem) SearchText() string {
+	var parts []string
+	parts = append(parts, t.toolCall.Name)
+	if t.toolCall.Input != "" {
+		parts = append(parts, t.toolCall.Input)
+	}
+	if t.result != nil {
+		parts = append(parts, t.result.Content)
+	}
+	return strings.Join(parts, "\n")
+}
+
 // StartAnimation starts the assistant message animation if it should be spinning.
 func (t *baseToolMessageItem) StartAnimation() tea.Cmd {
 	if !t.isSpinning() {
@@ -469,6 +484,18 @@ func (t *baseToolMessageItem) ToggleExpanded() bool {
 	t.clearCache()
 	t.Bump()
 	return t.expandedContent
+}
+
+// SetExpanded forces the expanded state. Used by search navigation to
+// reveal or collapse tool content directly.
+func (t *baseToolMessageItem) SetExpanded(expanded bool) bool {
+	if t.expandedContent == expanded {
+		return expanded
+	}
+	t.expandedContent = expanded
+	t.clearCache()
+	t.Bump()
+	return expanded
 }
 
 // Finished implements list.Item. A tool call is freezable once the

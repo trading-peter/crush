@@ -199,6 +199,18 @@ func (a *AssistantMessageItem) ID() string {
 	return a.message.ID
 }
 
+// SearchText implements [SearchableItem].
+func (a *AssistantMessageItem) SearchText() string {
+	var parts []string
+	if thinking := a.message.ReasoningContent().Thinking; thinking != "" {
+		parts = append(parts, thinking)
+	}
+	if content := a.message.Content().Text; content != "" {
+		parts = append(parts, content)
+	}
+	return strings.Join(parts, "\n")
+}
+
 // RawRender implements [MessageItem].
 func (a *AssistantMessageItem) RawRender(width int) string {
 	cappedWidth := cappedMessageWidth(width)
@@ -619,6 +631,24 @@ func (a *AssistantMessageItem) ToggleExpanded() bool {
 	}
 	a.Bump()
 	return a.thinkingViewMode != thinkingCollapsed
+}
+
+// SetExpanded forces the thinking view mode to fully expanded or fully
+// collapsed, bypassing the tail-window intermediate state. This is used by
+// search navigation to reveal or restore thinking content directly.
+func (a *AssistantMessageItem) SetExpanded(expanded bool) bool {
+	if strings.TrimSpace(a.message.ReasoningContent().Thinking) == "" {
+		return false
+	}
+	newState := thinkingCollapsed
+	if expanded {
+		newState = thinkingFullExpanded
+	}
+	if a.thinkingViewMode != newState {
+		a.thinkingViewMode = newState
+		a.Bump()
+	}
+	return expanded
 }
 
 // tailWindowWouldTruncate reports whether the current thinking text

@@ -111,6 +111,11 @@ func (s *ShellItem) ID() string          { return s.id }
 func (s *ShellItem) FilterValue() string { return s.command }
 func (s *ShellItem) Finished() bool      { return !s.pending }
 
+// SearchText implements [SearchableItem].
+func (s *ShellItem) SearchText() string {
+	return s.command + "\n" + s.output
+}
+
 // StartAnimation starts the spinner animation for pending shell items.
 func (s *ShellItem) StartAnimation() tea.Cmd {
 	if !s.pending {
@@ -186,6 +191,16 @@ func (s *ShellItem) ToggleExpanded() bool {
 	s.expandedContent = !s.expandedContent
 	s.Bump()
 	return s.expandedContent
+}
+
+// SetExpanded forces the expanded state. Used by search navigation.
+func (s *ShellItem) SetExpanded(expanded bool) bool {
+	if s.expandedContent == expanded {
+		return expanded
+	}
+	s.expandedContent = expanded
+	s.Bump()
+	return expanded
 }
 
 func (s *ShellItem) RawRender(width int) string {

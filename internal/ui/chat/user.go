@@ -53,6 +53,11 @@ func (m *UserMessageItem) Finished() bool {
 	return true
 }
 
+// SearchText implements [SearchableItem].
+func (m *UserMessageItem) SearchText() string {
+	return m.message.Content().Text
+}
+
 // RawRender implements [MessageItem].
 func (m *UserMessageItem) RawRender(width int) string {
 	cappedWidth := cappedMessageWidth(width)

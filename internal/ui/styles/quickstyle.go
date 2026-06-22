@@ -869,6 +869,12 @@ func quickStyle(o quickStyleOpts) Styles {
 	// Text selection.
 	s.TextSelection = lipgloss.NewStyle().Foreground(o.onPrimary).Background(o.primary)
 
+	// Search bar.
+	s.SearchBar = lipgloss.NewStyle().Background(o.bgLessVisible)
+	s.SearchPrompt = lipgloss.NewStyle().Background(o.bgLessVisible).Foreground(o.primary).Bold(true)
+	s.SearchMatchCount = lipgloss.NewStyle().Background(o.bgLessVisible).Foreground(o.fgMoreSubtle)
+	s.SearchNoMatch = lipgloss.NewStyle().Background(o.bgLessVisible).Foreground(o.error)
+
 	// Dialog styles
 	s.Dialog.Title = base.Padding(0, 1).Foreground(o.primary)
 	s.Dialog.TitleText = base.Foreground(o.primary)

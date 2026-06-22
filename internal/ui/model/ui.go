@@ -2248,7 +2248,20 @@ func (m *UI) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 				}
 			}
 		case uiFocusMain:
+			// When search is active, let the chat handle search-specific keys
+			// first. If consumed, we're done. If not consumed (confirmed phase
+			// + normal scroll key), fall through to regular handling below.
+			if m.chat.IsSearching() {
+				if handled, cmd := m.chat.HandleSearchKeyMsg(msg); handled {
+					if cmd != nil {
+						cmds = append(cmds, cmd)
+					}
+					return tea.Sequence(cmds...)
+				}
+			}
 			switch {
+			case !m.chat.IsSearching() && key.Matches(msg, m.keyMap.Chat.SearchStart):
+				m.chat.StartSearch()
 			case key.Matches(msg, m.keyMap.Tab):
 				m.focus = uiFocusEditor
 				cmds = append(cmds, m.textarea.Focus())
@@ -2458,6 +2471,13 @@ func (m *UI) Draw(scr uv.Screen, area uv.Rectangle) *tea.Cursor {
 		return m.dialog.Draw(scr, scr.Bounds())
 	}
 
+	// Search input cursor takes priority over the editor cursor.
+	if m.chat.IsSearching() {
+		if cur := m.chat.SearchCursor(); cur != nil {
+			return cur
+		}
+	}
+
 	switch m.focus {
 	case uiFocusEditor:
 		if m.layout.editor.Dy() <= 0 {
@@ -2564,6 +2584,7 @@ func (m *UI) ShortHelp() []key.Binding {
 				k.Chat.PageUp,
 				k.Chat.PageDown,
 				k.Chat.Copy,
+				k.Chat.SearchStart,
 			)
 			if m.pillsExpanded && hasIncompleteTodos(m.session.Todos) && m.promptQueue > 0 {
 				binds = append(binds, k.Chat.PillLeft)
@@ -2682,6 +2703,7 @@ func (m *UI) FullHelp() [][]key.Binding {
 				[]key.Binding{
 					k.Chat.Copy,
 					k.Chat.ClearHighlight,
+					k.Chat.SearchStart,
 				},
 			)
 			if m.pillsExpanded && hasIncompleteTodos(m.session.Todos) && m.promptQueue > 0 {

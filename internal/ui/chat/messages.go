@@ -41,11 +41,24 @@ type Expandable interface {
 	// ToggleExpanded toggles the expanded state of the item. It returns
 	// whether the item is now expanded.
 	ToggleExpanded() bool
+
+	// SetExpanded forces the expanded state. Returns whether the item is
+	// now expanded. Unlike ToggleExpanded this does not cycle through
+	// intermediate states — it jumps directly to the requested state.
+	SetExpanded(expanded bool) bool
 }
 
 // KeyEventHandler is an interface for items that can handle key events.
 type KeyEventHandler interface {
 	HandleKeyEvent(key tea.KeyMsg) (bool, tea.Cmd)
+}
+
+// SearchableItem is a message item that exposes its plain-text content for
+// full-text search. The returned text is matched case-insensitively against
+// the search query; it does not need to match the rendered output exactly.
+type SearchableItem interface {
+	MessageItem
+	SearchText() string
 }
 
 // MessageItem represents a [message.Message] item that can be displayed in the

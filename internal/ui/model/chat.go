@@ -1,9 +1,11 @@
 package model
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/crush/internal/ui/anim"
@@ -64,6 +66,22 @@ type Chat struct {
 	// bottom on new messages.
 	follow bool
 
+	// fullHeight is the height requested by the last SetSize call, before
+	// the search bar adjustment. Used to grow/shrink the list when search
+	// is toggled.
+	fullHeight int
+
+	// searchBarY is the screen Y of the search bar row, captured during
+	// Draw so that SearchCursor can report the correct cursor position.
+	searchBarY int
+
+	// searchBarX is the screen X of the search bar's left edge, captured
+	// during Draw for cursor positioning.
+	searchBarX int
+
+	// search holds the state for the in-chat text search feature.
+	search searchState
+
 	// drawCache memoizes the decoded form of the last list.Render output so
 	// repeat frames with byte-identical content skip the per-cell ANSI
 	// reparse that uv.StyledString.Draw performs every call. See F9
@@ -102,10 +120,22 @@ func NewChat(com *common.Common) *Chat {
 	l := list.NewList()
 	l.SetGap(1)
 	l.RegisterRenderCallback(c.applyHighlightRange)
+	l.RegisterRenderCallback(c.applySearchHighlight)
 	l.RegisterRenderCallback(list.FocusedRenderCallback(l))
 	c.list = l
 	c.mouseDownItem = -1
 	c.mouseDragItem = -1
+
+	// Initialise the search textinput (reused across search sessions).
+	ti := textinput.New()
+	ti.SetVirtualCursor(false)
+	ti.SetStyles(com.Styles.TextInput)
+	ti.Prompt = ""
+	ti.Placeholder = "search…"
+	c.search.input = ti
+	c.search.phase = searchIdle
+	c.search.current = -1
+
 	return c
 }
 
@@ -122,6 +152,17 @@ func (m *Chat) Height() int {
 // rendered string and the screen's width method; area / scroll changes do not
 // invalidate it.
 func (m *Chat) Draw(scr uv.Screen, area uv.Rectangle) {
+	if m.IsSearching() {
+		barArea := area
+		barArea.Max.Y = barArea.Min.Y + searchHeight
+		m.searchBarY = area.Min.Y
+		m.searchBarX = area.Min.X
+		m.drawSearchBar(scr, barArea)
+
+		// Shrink the list area by the search bar height.
+		area.Min.Y += searchHeight
+	}
+
 	rendered := m.list.Render()
 	method, ok := scr.WidthMethod().(ansi.Method)
 	if !ok {
@@ -204,9 +245,104 @@ func drawCachedBuffer(scr uv.Screen, area uv.Rectangle, buf uv.ScreenBuffer) {
 	buf.Draw(scr, area)
 }
 
+// IsSearching reports whether the in-chat text search bar is active.
+func (m *Chat) IsSearching() bool {
+	return m.search.phase != searchIdle
+}
+
+// StartSearch opens the search bar and enters the input phase.
+func (m *Chat) StartSearch() {
+	m.startSearch()
+}
+
+// HandleSearchKeyMsg processes key events while search is active. Returns
+// handled == true when the key was consumed and should not reach normal chat
+// key handling.
+func (m *Chat) HandleSearchKeyMsg(msg tea.KeyMsg) (bool, tea.Cmd) {
+	return m.handleSearchKeyMsg(msg)
+}
+
+// SearchCursor returns the terminal cursor position for the search input, or
+// nil when the input is not focused.
+func (m *Chat) SearchCursor() *tea.Cursor {
+	if m.search.phase != searchInput {
+		return nil
+	}
+	cur := m.search.input.Cursor()
+	if cur == nil {
+		return nil
+	}
+	// Offset for: screen position of the bar + "/" prompt + separating space.
+	cur.X += m.searchBarX + len(m.searchPromptLabel()) + 1
+	cur.Y = m.searchBarY
+	return cur
+}
+
+// searchPromptLabel is the "/" symbol shown before the search input.
+func (m *Chat) searchPromptLabel() string {
+	return "/"
+}
+
+// listHeightForSearch returns the list height given a full height, subtracting
+// the search bar when search is active.
+func (m *Chat) listHeightForSearch(height int) int {
+	if m.IsSearching() {
+		return max(0, height-searchHeight)
+	}
+	return height
+}
+
+// shrinkListForSearch resizes the list to make room for the search bar.
+func (m *Chat) shrinkListForSearch() {
+	m.list.SetSize(m.list.Width(), m.listHeightForSearch(m.fullHeight))
+}
+
+// restoreListAfterSearch restores the list to its full height after search.
+func (m *Chat) restoreListAfterSearch() {
+	m.list.SetSize(m.list.Width(), m.fullHeight)
+	if m.AtBottom() {
+		m.ScrollToBottom()
+	}
+}
+
+// drawSearchBar renders the search bar onto the top row of the chat area.
+func (m *Chat) drawSearchBar(scr uv.Screen, area uv.Rectangle) {
+	sty := m.com.Styles
+
+	prompt := sty.SearchPrompt.Render(m.searchPromptLabel())
+
+	query := m.search.activeQuery()
+	var count string
+	if query == "" {
+		count = ""
+	} else if len(m.search.matches) == 0 {
+		count = sty.SearchNoMatch.Render(" no matches")
+	} else {
+		count = sty.SearchMatchCount.Render(
+			fmt.Sprintf(" [%d/%d]", m.search.current+1, len(m.search.matches)),
+		)
+	}
+
+	inputView := m.search.input.View()
+	rightPart := count
+
+	// Calculate the textinput width so it doesn't overflow past the count.
+	promptWidth := ansi.StringWidth(prompt)
+	countWidth := ansi.StringWidth(rightPart)
+	// Reserve space for prompt + input + count.
+	maxInputWidth := max(1, area.Dx()-promptWidth-countWidth-1)
+	m.search.input.SetWidth(maxInputWidth)
+	inputView = m.search.input.View()
+
+	bar := prompt + " " + inputView + rightPart
+	rendered := sty.SearchBar.MaxWidth(area.Dx()).Render(bar)
+	uv.NewStyledString(rendered).Draw(scr, area)
+}
+
 // SetSize sets the size of the chat view port.
 func (m *Chat) SetSize(width, height int) {
-	m.list.SetSize(width, height)
+	m.fullHeight = height
+	m.list.SetSize(width, m.listHeightForSearch(height))
 	// Anchor to bottom if we were at the bottom.
 	if m.AtBottom() {
 		m.ScrollToBottom()
@@ -835,7 +971,11 @@ func (m *Chat) ClearMouse() {
 }
 
 // applyHighlightRange applies the current highlight range to the chat items.
+// It is a no-op while search is active — the search callback owns highlighting.
 func (m *Chat) applyHighlightRange(idx, selectedIdx int, item list.Item) list.Item {
+	if m.IsSearching() {
+		return item
+	}
 	if hi, ok := item.(list.Highlightable); ok {
 		// Apply highlight
 		startItemIdx, startLine, startCol, endItemIdx, endLine, endCol := m.getHighlightRange()
