@@ -73,6 +73,16 @@ func (m *Tool) Info() fantasy.ToolInfo {
 
 	if input, ok := m.tool.InputSchema.(map[string]any); ok {
 		if props, ok := input["properties"].(map[string]any); ok {
+			// Pre-expand multi-type JSON schemas (e.g. type: ["null","array"])
+			// into anyOf with type-specific keywords moved into the matching
+			// branch. charm.land/fantasy's schema.Normalize would otherwise
+			// drop the original items/properties schemas and leave conflicting
+			// keywords on the parent, which strict providers (Moonshot) reject.
+			for _, prop := range props {
+				if propMap, ok := prop.(map[string]any); ok {
+					expandNullableSchemas(propMap)
+				}
+			}
 			parameters = props
 		}
 		if req, ok := input["required"].([]any); ok {
