@@ -710,6 +710,40 @@ func (m *Chat) SelectNext() {
 	}
 }
 
+// isUserMessage reports whether the item at the given index is a user message.
+func (m *Chat) isUserMessage(index int) bool {
+	item := m.list.ItemAt(index)
+	if item == nil {
+		return false
+	}
+	_, ok := item.(*chat.UserMessageItem)
+	return ok
+}
+
+// SelectPrevUser selects the previous user message in the chat list.
+func (m *Chat) SelectPrevUser() {
+	for {
+		if !m.list.SelectPrev() {
+			return
+		}
+		if m.isUserMessage(m.list.Selected()) {
+			return
+		}
+	}
+}
+
+// SelectNextUser selects the next user message in the chat list.
+func (m *Chat) SelectNextUser() {
+	for {
+		if !m.list.SelectNext() {
+			return
+		}
+		if m.isUserMessage(m.list.Selected()) {
+			return
+		}
+	}
+}
+
 // SelectFirst selects the first message in the chat list.
 func (m *Chat) SelectFirst() {
 	if !m.list.SelectFirst() {

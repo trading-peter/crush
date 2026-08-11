@@ -37,6 +37,8 @@ type KeyMap struct {
 		DownOneItem    key.Binding
 		UpOneItem      key.Binding
 		UpDownOneItem  key.Binding
+		DownUserItem   key.Binding
+		UpUserItem     key.Binding
 		PageDown       key.Binding
 		PageUp         key.Binding
 		HalfPageDown   key.Binding
@@ -213,6 +215,14 @@ func DefaultKeyMap() KeyMap {
 	km.Chat.UpDownOneItem = key.NewBinding(
 		key.WithKeys("shift+up", "shift+down"),
 		key.WithHelp("shift+↑↓", "scroll one item"),
+	)
+	km.Chat.UpUserItem = key.NewBinding(
+		key.WithKeys("alt+up", "{"),
+		key.WithHelp("alt+↑", "previous user message"),
+	)
+	km.Chat.DownUserItem = key.NewBinding(
+		key.WithKeys("alt+down", "}"),
+		key.WithHelp("alt+↓", "next user message"),
 	)
 	km.Chat.HalfPageDown = key.NewBinding(
 		key.WithKeys("d"),

@@ -2793,6 +2793,16 @@ func (m *UI) handleKeyPressMsg(msg tea.KeyPressMsg) tea.Cmd {
 				if cmd := m.chat.ScrollToSelectedAndAnimate(); cmd != nil {
 					cmds = append(cmds, cmd)
 				}
+			case key.Matches(msg, m.keyMap.Chat.UpUserItem):
+				m.chat.SelectPrevUser()
+				if cmd := m.chat.ScrollToSelectedAndAnimate(); cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+			case key.Matches(msg, m.keyMap.Chat.DownUserItem):
+				m.chat.SelectNextUser()
+				if cmd := m.chat.ScrollToSelectedAndAnimate(); cmd != nil {
+					cmds = append(cmds, cmd)
+				}
 			case key.Matches(msg, m.keyMap.Chat.HalfPageUp):
 				if cmd := m.chat.ScrollByAndAnimate(-m.chat.Height() / 2); cmd != nil {
 					cmds = append(cmds, cmd)
