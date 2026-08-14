@@ -3092,6 +3092,7 @@ func (m *UI) ShortHelp() []key.Binding {
 				binds,
 				k.Chat.UpDown,
 				k.Chat.UpDownOneItem,
+				k.Chat.UpDownUserItem,
 				k.Chat.PageUp,
 				k.Chat.PageDown,
 				k.Chat.Copy,
@@ -3221,6 +3222,7 @@ func (m *UI) FullHelp() [][]key.Binding {
 				[]key.Binding{
 					k.Chat.UpDown,
 					k.Chat.UpDownOneItem,
+					k.Chat.UpDownUserItem,
 					k.Chat.PageUp,
 					k.Chat.PageDown,
 				},
